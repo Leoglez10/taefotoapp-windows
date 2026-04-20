@@ -25,3 +25,4 @@ powershell -ExecutionPolicy Bypass -File .\scripts\import_excel.ps1 `
   -CatalogSheet "Catalogo" `
   -EventsSheet "Eventos"
 ```
+# taefotoapp-windows
