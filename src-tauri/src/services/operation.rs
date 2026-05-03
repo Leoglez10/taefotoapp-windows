@@ -62,7 +62,7 @@ pub fn list_available_equipment(db_path: &Path) -> AppResult<Vec<EquipmentItem>>
     let conn = db::get_connection(db_path)?;
     let mut stmt = conn.prepare(
         "
-        SELECT id, numero, descripcion, estado, activo
+        SELECT id, numero, tipo, descripcion, estado, activo
         FROM equipos
         WHERE activo = 1 AND estado = 'disponible'
         ORDER BY numero
@@ -237,9 +237,10 @@ fn map_equipment(row: &rusqlite::Row<'_>) -> rusqlite::Result<EquipmentItem> {
     Ok(EquipmentItem {
         id: row.get(0)?,
         numero: row.get(1)?,
-        descripcion: row.get(2)?,
-        estado: row.get(3)?,
-        activo: row.get::<_, i64>(4)? == 1,
+        tipo: row.get(2)?,
+        descripcion: row.get(3)?,
+        estado: row.get(4)?,
+        activo: row.get::<_, i64>(5)? == 1,
     })
 }
 

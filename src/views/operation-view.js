@@ -98,10 +98,19 @@ export function renderOperationView(root, store) {
   const state = store.getState();
   const dashboard = state.dashboard || { alumnos_activos: 0, equipos_disponibles: 0, prestamos_activos: 0 };
   const currentType = state.operationType || "prestamo";
-  const availableEquipment =
+  const sortByNumero = (arr) =>
+    [...arr].sort((a, b) => {
+      const aNum = parseFloat(a.numero) || 0;
+      const bNum = parseFloat(b.numero) || 0;
+      if (aNum !== bNum) return aNum - bNum;
+      return String(a.numero).localeCompare(String(b.numero), "es");
+    });
+
+  const availableEquipment = sortByNumero(
     state.availableEquipment.length > 0
       ? state.availableEquipment
-      : state.equipment.filter((item) => item.activo && item.estado === "disponible");
+      : state.equipment.filter((item) => item.activo && item.estado === "disponible")
+  );
   const canLoan = Boolean(state.selectedStudent) && currentType === "prestamo" && availableEquipment.length > 0;
 
   root.innerHTML = `

@@ -212,8 +212,9 @@ pub fn update_student(db_path: &Path, payload: StudentInput) -> AppResult<Studen
 }
 
 pub fn delete_student(db_path: &Path, student_id: i64) -> AppResult<()> {
-    let conn = db::get_connection(db_path)?;
-    let active = conn
+    let mut conn = db::get_connection(db_path)?;
+    let tx = conn.transaction()?;
+    let active = tx
         .query_row(
             "SELECT 1 FROM prestamos WHERE alumno_id = ?1 AND estado = 'activo'",
             params![student_id],
@@ -223,7 +224,13 @@ pub fn delete_student(db_path: &Path, student_id: i64) -> AppResult<()> {
     if active.is_some() {
         return Err(AppError::Validation("No se puede eliminar un alumno con préstamo activo".into()));
     }
-    conn.execute("DELETE FROM alumnos WHERE id = ?1", params![student_id])?;
+    tx.execute(
+        "DELETE FROM historial_eventos WHERE prestamo_id IN (SELECT id FROM prestamos WHERE alumno_id = ?1)",
+        params![student_id],
+    )?;
+    tx.execute("DELETE FROM prestamos WHERE alumno_id = ?1", params![student_id])?;
+    tx.execute("DELETE FROM alumnos WHERE id = ?1", params![student_id])?;
+    tx.commit()?;
     Ok(())
 }
 
@@ -233,9 +240,9 @@ pub fn list_equipment(db_path: &Path, query: Option<String>) -> AppResult<Vec<Eq
     let like = format!("%{search}%");
     let mut stmt = conn.prepare(
         "
-        SELECT id, numero, descripcion, estado, activo
+        SELECT id, numero, tipo, descripcion, estado, activo
         FROM equipos
-        WHERE (?1 = '' OR numero LIKE ?2 OR descripcion LIKE ?2)
+        WHERE (?1 = '' OR numero LIKE ?2 OR descripcion LIKE ?2 OR tipo LIKE ?2)
         ORDER BY numero
         ",
     )?;
@@ -249,10 +256,11 @@ pub fn create_equipment(db_path: &Path, payload: EquipmentInput) -> AppResult<Eq
     conn.execute(
         "
         INSERT INTO equipos (numero, tipo, descripcion, estado, activo, updated_at)
-        VALUES (?1, 'Equipo', ?2, ?3, ?4, CURRENT_TIMESTAMP)
+        VALUES (?1, ?2, ?3, ?4, ?5, CURRENT_TIMESTAMP)
         ",
         params![
             payload.numero.trim(),
+            payload.tipo.trim(),
             payload.descripcion.trim(),
             payload.estado.trim(),
             payload.activo.unwrap_or(true) as i64
@@ -290,20 +298,25 @@ pub fn update_equipment(db_path: &Path, payload: EquipmentInput) -> AppResult<Eq
                 "INSERT INTO historial_eventos (tipo_evento, prestamo_id, fecha, observaciones) VALUES ('devolucion', ?1, ?2, ?3)",
                 params![prestamo_id, now, "Devolucion registrada desde panel admin"],
             )?;
-        } else {
-            return Err(AppError::Validation("No se puede marcar disponible un equipo prestado".into()));
+        } else if next_estado != "prestado" {
+            return Err(AppError::Validation("El equipo tiene un préstamo activo. Márquelo como disponible para liberarlo.".into()));
+        }
+    } else {
+        if next_estado == "prestado" {
+             return Err(AppError::Validation("No se puede marcar como prestado manualmente sin un registro de préstamo.".into()));
         }
     }
 
     tx.execute(
         "
         UPDATE equipos
-        SET numero = ?2, descripcion = ?3, estado = ?4, activo = ?5, updated_at = CURRENT_TIMESTAMP
+        SET numero = ?2, tipo = ?3, descripcion = ?4, estado = ?5, activo = ?6, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?1
         ",
         params![
             id,
             payload.numero.trim(),
+            payload.tipo.trim(),
             payload.descripcion.trim(),
             next_estado,
             payload.activo.unwrap_or(true) as i64
@@ -314,8 +327,9 @@ pub fn update_equipment(db_path: &Path, payload: EquipmentInput) -> AppResult<Eq
 }
 
 pub fn delete_equipment(db_path: &Path, equipment_id: i64) -> AppResult<()> {
-    let conn = db::get_connection(db_path)?;
-    let active = conn
+    let mut conn = db::get_connection(db_path)?;
+    let tx = conn.transaction()?;
+    let active = tx
         .query_row(
             "SELECT 1 FROM prestamos WHERE equipo_id = ?1 AND estado = 'activo'",
             params![equipment_id],
@@ -325,7 +339,13 @@ pub fn delete_equipment(db_path: &Path, equipment_id: i64) -> AppResult<()> {
     if active.is_some() {
         return Err(AppError::Validation("No se puede eliminar un equipo con préstamo activo".into()));
     }
-    conn.execute("DELETE FROM equipos WHERE id = ?1", params![equipment_id])?;
+    tx.execute(
+        "DELETE FROM historial_eventos WHERE prestamo_id IN (SELECT id FROM prestamos WHERE equipo_id = ?1)",
+        params![equipment_id],
+    )?;
+    tx.execute("DELETE FROM prestamos WHERE equipo_id = ?1", params![equipment_id])?;
+    tx.execute("DELETE FROM equipos WHERE id = ?1", params![equipment_id])?;
+    tx.commit()?;
     Ok(())
 }
 
@@ -741,7 +761,7 @@ fn get_student_by_id(db_path: &Path, id: i64) -> AppResult<StudentLookup> {
 fn get_equipment_by_id(db_path: &Path, id: i64) -> AppResult<EquipmentItem> {
     let conn = db::get_connection(db_path)?;
     conn.query_row(
-        "SELECT id, numero, descripcion, estado, activo FROM equipos WHERE id = ?1",
+        "SELECT id, numero, tipo, descripcion, estado, activo FROM equipos WHERE id = ?1",
         params![id],
         map_equipment,
     )
@@ -775,9 +795,10 @@ fn map_equipment(row: &rusqlite::Row<'_>) -> rusqlite::Result<EquipmentItem> {
     Ok(EquipmentItem {
         id: row.get(0)?,
         numero: row.get(1)?,
-        descripcion: row.get(2)?,
-        estado: row.get(3)?,
-        activo: row.get::<_, i64>(4)? == 1,
+        tipo: row.get(2)?,
+        descripcion: row.get(3)?,
+        estado: row.get(4)?,
+        activo: row.get::<_, i64>(5)? == 1,
     })
 }
 

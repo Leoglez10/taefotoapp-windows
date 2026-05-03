@@ -829,6 +829,38 @@ td input, td select {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+/* Sortable table headers */
+.sortable-th {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background 120ms ease;
+}
+
+.sortable-th:hover {
+  background: #dce7f7;
+}
+
+.sortable-th.sort-asc,
+.sortable-th.sort-desc {
+  background: #d0dfef;
+  color: var(--primary-dark);
+}
+
+.sort-arrow {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 0.82rem;
+  opacity: 0.55;
+  vertical-align: middle;
+}
+
+.sortable-th.sort-asc .sort-arrow,
+.sortable-th.sort-desc .sort-arrow {
+  opacity: 1;
+  color: var(--primary-dark);
+}
+
 @media (max-width: 1180px) {
   .hero-card,
   .operation-grid,

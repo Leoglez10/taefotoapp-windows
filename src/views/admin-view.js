@@ -42,8 +42,9 @@ function equipmentRows(equipment) {
   return equipment
     .map(
       (item) => `
-        <tr data-equipment-row data-numero="${item.numero}" data-descripcion="${item.descripcion}" data-estado="${item.estado}" data-activo="${item.activo ? "1" : "0"}">
+        <tr data-equipment-row data-numero="${item.numero}" data-tipo="${item.tipo}" data-descripcion="${item.descripcion}" data-estado="${item.estado}" data-activo="${item.activo ? "1" : "0"}">
           <td><input data-field="numero" value="${item.numero}" /></td>
+          <td><input data-field="tipo" value="${item.tipo}" /></td>
           <td><input data-field="descripcion" value="${item.descripcion}" /></td>
           <td>
             <select data-field="estado">
@@ -165,9 +166,11 @@ function reportPreviewModal(state) {
           </div>
         </div>
         <div class="modal-actions">
-          <button class="btn-secondary" type="button" data-print-report-preview="true">Imprimir vista</button>
-          <button class="ghost-btn" type="button" data-close-report-preview="true">Cerrar</button>
-          <button class="btn" type="button" data-generate-report-from-preview="true">Generar PDF</button>
+          <button class="btn-secondary" type="button" data-print-report-preview="true" ${state.generatingReport ? "disabled" : ""}>Imprimir vista</button>
+          <button class="ghost-btn" type="button" data-close-report-preview="true" ${state.generatingReport ? "disabled" : ""}>Cerrar</button>
+          <button class="btn" type="button" data-generate-report-from-preview="true" ${state.generatingReport ? "disabled" : ""}>
+            ${state.generatingReport ? "Generando..." : "Generar PDF"}
+          </button>
         </div>
       </div>
     </div>
@@ -328,7 +331,7 @@ function attachTableFilters(root) {
     const rows = [...root.querySelectorAll("#equipment-table tbody tr[data-equipment-row]")];
     let visible = 0;
     rows.forEach((row) => {
-      const haystack = `${row.dataset.numero} ${row.dataset.descripcion}`.toLowerCase();
+      const haystack = `${row.dataset.numero} ${row.dataset.tipo} ${row.dataset.descripcion}`.toLowerCase();
       const activo = row.dataset.activo === "1";
       const show =
         (!query || haystack.includes(query)) &&
@@ -410,6 +413,53 @@ function attachTableFilters(root) {
   applyEquipment();
   applyAdmins();
   applyRecords();
+}
+
+function attachTableSorting(root) {
+  const tableId = "equipment-table";
+  const table = root.querySelector(`#${tableId}`);
+  if (!table) return;
+
+  let currentCol = null;
+  let ascending = true;
+
+  table.querySelectorAll("th[data-sort-col]").forEach((th) => {
+    th.style.cursor = "pointer";
+    th.addEventListener("click", () => {
+      const col = th.dataset.sortCol;
+      if (currentCol === col) {
+        ascending = !ascending;
+      } else {
+        currentCol = col;
+        ascending = true;
+      }
+
+      // Update arrow indicators
+      table.querySelectorAll("th[data-sort-col] .sort-arrow").forEach((arrow) => {
+        arrow.textContent = "↕";
+        arrow.closest("th").classList.remove("sort-asc", "sort-desc");
+      });
+      const arrow = th.querySelector(".sort-arrow");
+      arrow.textContent = ascending ? "↑" : "↓";
+      th.classList.add(ascending ? "sort-asc" : "sort-desc");
+
+      // Sort visible rows
+      const tbody = table.querySelector("tbody");
+      const rows = [...tbody.querySelectorAll("tr[data-equipment-row]")];
+      rows.sort((a, b) => {
+        const aVal = (a.dataset[col] || "").toLowerCase();
+        const bVal = (b.dataset[col] || "").toLowerCase();
+        // Numeric sort for numero
+        if (col === "numero") {
+          const aNum = parseFloat(aVal) || 0;
+          const bNum = parseFloat(bVal) || 0;
+          return ascending ? aNum - bNum : bNum - aNum;
+        }
+        return ascending ? aVal.localeCompare(bVal, "es") : bVal.localeCompare(aVal, "es");
+      });
+      rows.forEach((row) => tbody.appendChild(row));
+    });
+  });
 }
 
 function importSection(state) {
@@ -610,6 +660,7 @@ function equipmentSection(state) {
         <h3>Agregar equipo</h3>
         <form id="equipment-create-form" class="form-grid">
           <label>Número<input name="numero" required /></label>
+          <label>Tipo<input name="tipo" placeholder="Ej: Cámara, Lente..." required /></label>
           <label>Descripción<input name="descripcion" required /></label>
           <label>
             Estado
@@ -644,8 +695,15 @@ function equipmentSection(state) {
         </div>
         <div class="table-wrap">
           <table id="equipment-table">
-            <thead><tr><th>Número</th><th>Descripción</th><th>Estado</th><th>Activo</th><th>Acciones</th></tr></thead>
-            <tbody>${equipmentRows(state.equipment) || `<tr><td colspan="5">Sin equipos.</td></tr>`}</tbody>
+            <thead><tr>
+              <th data-sort-col="numero" class="sortable-th">Número <span class="sort-arrow">↕</span></th>
+              <th data-sort-col="tipo" class="sortable-th">Tipo <span class="sort-arrow">↕</span></th>
+              <th data-sort-col="descripcion" class="sortable-th">Descripción <span class="sort-arrow">↕</span></th>
+              <th data-sort-col="estado" class="sortable-th">Estado <span class="sort-arrow">↕</span></th>
+              <th data-sort-col="activo" class="sortable-th">Activo <span class="sort-arrow">↕</span></th>
+              <th>Acciones</th>
+            </tr></thead>
+            <tbody>${equipmentRows(state.equipment) || `<tr><td colspan="6">Sin equipos.</td></tr>`}</tbody>
           </table>
         </div>
       </article>
@@ -956,6 +1014,7 @@ export function renderAdminView(root, store) {
     const data = new FormData(event.currentTarget);
     await store.actions.createEquipment({
       numero: String(data.get("numero") || "").trim(),
+      tipo: String(data.get("tipo") || "").trim(),
       descripcion: String(data.get("descripcion") || "").trim(),
       estado: String(data.get("estado") || "disponible"),
       activo: true
@@ -970,6 +1029,7 @@ export function renderAdminView(root, store) {
       await store.actions.updateEquipment({
         id: Number(button.dataset.saveEquipment),
         numero: values.numero.trim(),
+        tipo: values.tipo.trim(),
         descripcion: values.descripcion.trim(),
         estado: values.estado,
         activo: values.activo === "1"
@@ -1073,4 +1133,5 @@ export function renderAdminView(root, store) {
   });
 
   attachTableFilters(root);
+  attachTableSorting(root);
 }

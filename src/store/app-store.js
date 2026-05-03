@@ -46,6 +46,7 @@ const initialState = {
   operationModal: null,
   reportData: null,
   reportPreviewOpen: false,
+  generatingReport: false,
   reportRequest: null,
   lastGeneratedPdfPath: null,
   importSummary: null,
@@ -462,19 +463,36 @@ export function createStore() {
     },
 
     async generateReportPdf(request = null) {
+      const { reportRequest, generatingReport } = getState();
+      if (generatingReport) return;
+
       try {
-        const finalRequest = request || state.reportRequest;
+        const finalRequest = request || reportRequest;
         if (!finalRequest) {
           throw new Error("Primero genera una vista previa del reporte");
         }
+
+        setState({ generatingReport: true });
         const result = await invoke("generate_report_pdf", { request: finalRequest });
+
         setState({
           reportPreviewOpen: false,
+          generatingReport: false,
           lastGeneratedPdfPath: result.path,
-          flash: { tone: "success", message: `PDF generado en ${result.path}` }
+          flash: { tone: "success", message: "PDF generado exitosamente." }
         });
+
+        // Intentar abrir automáticamente
+        try {
+          await invoke("open_file_path", { path: result.path });
+        } catch (e) {
+          console.warn("No se pudo abrir automáticamente:", e);
+        }
       } catch (error) {
-        setState({ flash: { tone: "danger", message: messageFromError(error) } });
+        setState({
+          generatingReport: false,
+          flash: { tone: "danger", message: messageFromError(error) }
+        });
       }
     },
 

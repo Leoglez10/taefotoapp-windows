@@ -35,6 +35,7 @@ pub struct StudentInput {
 pub struct EquipmentItem {
     pub id: i64,
     pub numero: String,
+    pub tipo: String,
     pub descripcion: String,
     pub estado: String,
     pub activo: bool,
@@ -44,6 +45,7 @@ pub struct EquipmentItem {
 pub struct EquipmentInput {
     pub id: Option<i64>,
     pub numero: String,
+    pub tipo: String,
     pub descripcion: String,
     pub estado: String,
     pub activo: Option<bool>,
