@@ -32,15 +32,16 @@ function studentCard(student) {
     `;
   }
 
+  const hasLoan = student.prestamo_activo;
   return `
-    <div class="lookup-result student-card">
+    <div class="lookup-result student-card ${hasLoan ? "has-loan" : ""}">
       <div class="student-card-head">
         <div>
           <p class="eyebrow">Alumno identificado</p>
           <h3>${student.nombre}</h3>
         </div>
-        <span class="pill-tag ${student.prestamo_activo ? "warn" : "success"}">
-          ${student.prestamo_activo ? "Con préstamo activo" : "Listo para préstamo"}
+        <span class="pill-tag ${hasLoan ? "warn" : "success"}">
+          ${hasLoan ? "CON PRÉSTAMO ACTIVO" : "Listo para préstamo"}
         </span>
       </div>
       <div class="student-meta-grid">
@@ -50,9 +51,16 @@ function studentCard(student) {
         <article><span>Profesor</span><strong>${student.profesor}</strong></article>
       </div>
       ${
-        student.prestamo_activo
-          ? `<div class="status-banner warn">Equipo activo: <strong>${student.prestamo_activo.equipo_numero}</strong> desde ${student.prestamo_activo.fecha_prestamo}. Registre la devolución si ya lo entrega.</div>`
-          : `<div class="status-banner success">No tiene préstamo activo. Puede registrar una salida nueva.</div>`
+        hasLoan
+          ? `<div class="loan-alert">
+               <div class="loan-alert-icon">⚠️</div>
+               <div class="loan-alert-content">
+                 <strong>Equipo prestado actualmente:</strong>
+                 <span class="loan-equipo">${student.prestamo_activo.equipo_numero}</span>
+                 <span class="loan-date">Desde: ${student.prestamo_activo.fecha_prestamo}</span>
+               </div>
+             </div>`
+          : `<div class="status-banner success">Sin préstamos activos. Puede registrar una salida nueva.</div>`
       }
     </div>
   `;
@@ -111,7 +119,12 @@ export function renderOperationView(root, store) {
       ? state.availableEquipment
       : state.equipment.filter((item) => item.activo && item.estado === "disponible")
   );
-  const canLoan = Boolean(state.selectedStudent) && currentType === "prestamo" && availableEquipment.length > 0;
+
+  const hasLoan = state.selectedStudent?.prestamo_activo;
+  const submitLabel = hasLoan ? "Registrar devolución" : "Registrar préstamo";
+  const submitClass = hasLoan ? "btn-danger" : "btn";
+  const equipmentDisabled = currentType === "devolucion" || !state.selectedStudent || availableEquipment.length === 0;
+  const selectPlaceholder = currentType === "devolucion" ? "Devolución automática" : "Seleccione equipo";
 
   root.innerHTML = `
     <section class="hero-card">
@@ -128,41 +141,98 @@ export function renderOperationView(root, store) {
 
     ${bannerMarkup(state.flash)}
 
-    <section class="operation-grid">
+    <section class="operation-grid three-col">
       <article class="panel">
-        <h3>Registrar movimiento</h3>
+        <h3>Datos del alumno</h3>
         <form id="student-form" class="form-grid">
-          <label>
-            Código
-            <input id="student-code" name="codigo" autocomplete="off" placeholder="Escanee o escriba el código" value="${state.selectedStudent?.codigo || ""}" />
+          <label for="student-code">
+            Código del alumno
+            <span class="label-hint">Escanee o escriba y presione Enter</span>
           </label>
-          ${operationTypeButtons(currentType, state.selectedStudent)}
-          ${studentCard(state.selectedStudent)}
-          <div class="two-col aligned-end">
-            <label>
-              Equipo
-              <select name="equipo_id" id="student-equipment">
-                <option value="">Seleccione</option>
-                ${equipmentOptions(availableEquipment)}
-              </select>
-            </label>
-          </div>
-          ${
-            !availableEquipment.length
-              ? `<div class="status-banner warn">No hay equipos activos en estado disponible para prestar.</div>`
-              : ""
-          }
-          <label>
-            Observaciones
-            <input name="observaciones" placeholder="Opcional" />
-          </label>
-          <button class="btn btn-block btn-xl" type="submit">Registrar movimiento</button>
+          <input 
+            id="student-code" 
+            name="codigo" 
+            autocomplete="off" 
+            placeholder="Ingrese código y presione Enter" 
+            value="${state.selectedStudent?.codigo || ""}"
+            aria-describedby="code-hint"
+          />
+          <p id="code-hint" class="sr-only">Presione Enter para buscar al alumno</p>
+          <div class="input-hint">Presione Enter para buscar</div>
         </form>
       </article>
 
       <article class="panel">
-        <h3>Historial del alumno</h3>
+        <h3>Historial</h3>
         ${historyTable(state.studentHistory)}
+      </article>
+
+      <article class="panel panel-info">
+        <h3>Información del alumno</h3>
+        ${studentCard(state.selectedStudent)}
+      </article>
+    </section>
+
+    <section class="operation-grid">
+      <article class="panel">
+        <h3>Registrar movimiento</h3>
+        <form id="operation-form" class="form-grid">
+          ${operationTypeButtons(currentType, state.selectedStudent)}
+          <div class="two-col aligned-end">
+            <label for="student-equipment">
+              Equipo
+              <span class="label-hint">${selectPlaceholder}</span>
+            </label>
+            <select name="equipo_id" id="student-equipment" ${equipmentDisabled ? "disabled" : ""}>
+              <option value="">${selectPlaceholder}</option>
+              ${equipmentOptions(availableEquipment)}
+            </select>
+          </div>
+          ${
+            !availableEquipment.length
+              ? `<div class="status-banner warn">No hay equipos activos disponibles para prestar.</div>`
+              : ""
+          }
+          <label for="observaciones">
+            Observaciones
+            <span class="label-hint">Opcional</span>
+          </label>
+          <input name="observaciones" id="observaciones" placeholder="Notas adicionales (opcional)" />
+          <button class="btn btn-block btn-xl ${submitClass}" type="submit">${submitLabel}</button>
+        </form>
+      </article>
+
+      <article class="panel panel-highlight">
+        <h3>Acciones rápidas</h3>
+        ${hasLoan 
+          ? `<div class="quick-action-card warning">
+               <div class="quick-action-icon">⚠️</div>
+               <div class="quick-action-text">
+                 <strong>El alumno tiene equipo prestado</strong>
+                 <span>Equipo: ${state.selectedStudent.prestamo_activo.equipo_numero}</span>
+               </div>
+               <button class="btn btn-danger btn-lg" id="quick-return-btn">
+                 📥 Regresar equipo
+               </button>
+             </div>`
+          : `<div class="quick-action-card success">
+               <div class="quick-action-icon">✓</div>
+               <div class="quick-action-text">
+                 <strong>Sin préstamos activos</strong>
+                 <span>El aluno puede tomar un equipo prestado</span>
+               </div>
+               <button class="btn btn-lg" id="quick-loan-btn">
+                 📤 Tomar prestado
+               </button>
+             </div>`
+        }
+        <div class="quick-help">
+          <p><strong>Atajos de teclado:</strong></p>
+          <ul>
+            <li><kbd>Enter</kbd> - Buscar alumno / Confirmar</li>
+            <li><kbd>Escape</kbd> - Limpiar formulario</li>
+          </ul>
+        </div>
       </article>
     </section>
 
@@ -171,10 +241,10 @@ export function renderOperationView(root, store) {
         ? `
           <div class="modal-backdrop" data-close-operation-modal="true">
             <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="operation-modal-title">
-              <div class="modal-icon">OK</div>
+              <div class="modal-icon">${state.operationModal.tipo === "devolucion" ? "↩️" : "✓"}</div>
               <h3 id="operation-modal-title">${state.operationModal.title}</h3>
-              <p><strong>${state.operationModal.studentName}</strong> quedó registrado con el equipo <strong>${state.operationModal.equipmentNumber}</strong>.</p>
-              <p class="muted">El formulario ya se limpió para capturar al siguiente alumno.</p>
+              <p><strong>${state.operationModal.studentName}</strong></p>
+              <p class="muted">${state.operationModal.tipo === "devolucion" ? `El equipo ${state.operationModal.equipmentNumber} ha sido devuelto.` : `Quedó registrado con el equipo ${state.operationModal.equipmentNumber}.`}</p>
               <button class="btn btn-block" type="button" data-close-operation-modal="true">Continuar</button>
             </div>
           </div>
@@ -183,7 +253,8 @@ export function renderOperationView(root, store) {
     }
   `;
 
-  const form = root.querySelector("#student-form");
+  const codeForm = root.querySelector("#student-form");
+  const operationForm = root.querySelector("#operation-form");
   const codeInput = root.querySelector("#student-code");
   const equipmentSelect = root.querySelector("#student-equipment");
 
@@ -197,14 +268,13 @@ export function renderOperationView(root, store) {
       currentState.operationType === "devolucion" || !currentState.selectedStudent || currentAvailableEquipment.length === 0;
   };
 
-  codeInput.addEventListener("change", async () => {
-    await store.actions.findStudentByCode(codeInput.value.trim());
-  });
-
   codeInput.addEventListener("keydown", async (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      await store.actions.findStudentByCode(codeInput.value.trim());
+      const code = codeInput.value.trim();
+      if (code) {
+        await store.actions.findStudentByCode(code);
+      }
     }
   });
 
@@ -215,9 +285,9 @@ export function renderOperationView(root, store) {
     });
   });
 
-  form.addEventListener("submit", async (event) => {
+  operationForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const data = new FormData(form);
+    const data = new FormData(operationForm);
     const currentState = store.getState();
 
     await store.actions.registerStudentOperation({
@@ -226,16 +296,51 @@ export function renderOperationView(root, store) {
       equipo_id: data.get("equipo_id") ? Number(data.get("equipo_id")) : null,
       observaciones: String(data.get("observaciones") || "").trim() || null
     });
-    form.reset();
+    operationForm.reset();
     syncType();
     codeInput.focus();
   });
+
+  const quickReturnBtn = root.querySelector("#quick-return-btn");
+  if (quickReturnBtn) {
+    quickReturnBtn.addEventListener("click", async () => {
+      const currentState = store.getState();
+      if (currentState.selectedStudent?.prestamo_activo) {
+        await store.actions.registerStudentOperation({
+          codigo: currentState.selectedStudent.codigo,
+          tipo: "devolucion",
+          equipo_id: currentState.selectedStudent.prestamo_activo.equipo_id,
+          observaciones: null
+        });
+        operationForm.reset();
+        syncType();
+        codeInput.focus();
+      }
+    });
+  }
+
+  const quickLoanBtn = root.querySelector("#quick-loan-btn");
+  if (quickLoanBtn) {
+    quickLoanBtn.addEventListener("click", () => {
+      store.actions.setOperationType("prestamo");
+      syncType();
+      equipmentSelect.focus();
+    });
+  }
 
   root.querySelectorAll("[data-close-operation-modal]").forEach((button) => {
     button.addEventListener("click", () => {
       store.actions.closeOperationModal();
       setTimeout(() => codeInput.focus(), 0);
     });
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      operationForm.reset();
+      syncType();
+      codeInput.focus();
+    }
   });
 
   syncType();
