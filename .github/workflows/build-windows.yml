@@ -27,6 +27,9 @@ jobs:
       - name: Install Frontend Dependencies
         run: npm install
 
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+
       - name: Install Rust Stable
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -42,7 +45,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: auto # Generará un pre-release o release basado en el package.json
+          tagName: auto
           releaseName: 'Prestamo de Equipos - Windows'
           releaseBody: |
             Instalador de la aplicación para Windows. Descarga el archivo de abajo para instalar.
@@ -55,8 +58,3 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: --target x86_64-pc-windows-msvc
-          artifactPath: src-tauri/target/release/bundle/windows/*.msi
-          artifactName: PrestamoDeEquipos-Installer.msi
-          artifactContentType: application/x-msdownload
-          artifactUpload: true
-          artifactUploadPath: 'releases/${{ github.ref_name }}/PrestamoDeEquipos-Installer.msi'
