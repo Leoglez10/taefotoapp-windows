@@ -44,7 +44,19 @@ jobs:
         with:
           tagName: auto # Generará un pre-release o release basado en el package.json
           releaseName: 'Prestamo de Equipos - Windows'
-          releaseBody: 'Instalador de la aplicación para Windows. Descarga el archivo de abajo para instalar.'
+          releaseBody: |
+            Instalador de la aplicación para Windows. Descarga el archivo de abajo para instalar.
+            
+            **Si Windows bloquea la instalación:**
+            1. Click derecho en el archivo → Propiedades
+            2. Abajo a la derecha, marca "Desbloquear"
+            3. Aplica los cambios
+            4. Ejecuta el instalador
           releaseDraft: false
           prerelease: false
           args: --target x86_64-pc-windows-msvc
+          artifactPath: src-tauri/target/release/bundle/windows/*.msi
+          artifactName: PrestamoDeEquipos-Installer.msi
+          artifactContentType: application/x-msdownload
+          artifactUpload: true
+          artifactUploadPath: 'releases/${{ github.ref_name }}/PrestamoDeEquipos-Installer.msi'
