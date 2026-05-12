@@ -212,7 +212,7 @@ export function renderOperationView(root, store) {
     btn.addEventListener("click", () => {
       root.querySelectorAll(".equipment-btn").forEach(b => b.classList.remove("selected"));
       btn.classList.add("selected");
-      equipmentInput.value = btn.dataset.equipmentId;
+      if (equipmentInput) equipmentInput.value = btn.dataset.equipmentId;
     });
     btn.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
@@ -232,7 +232,7 @@ export function renderOperationView(root, store) {
 
   submitBtn.addEventListener("click", async () => {
     const currentState = store.getState();
-    const equipoId = equipmentInput.value;
+    const equipoId = equipmentInput?.value;
     const observaciones = root.querySelector("#observaciones")?.value?.trim() || "";
     const student = currentState.selectedStudent;
 
@@ -257,7 +257,7 @@ export function renderOperationView(root, store) {
       });
     }
 
-    equipmentInput.value = "";
+    if (equipmentInput) equipmentInput.value = "";
     root.querySelectorAll(".equipment-btn").forEach(b => b.classList.remove("selected"));
     root.querySelector("#observaciones").value = "";
     codeInput.value = "";
@@ -266,7 +266,7 @@ export function renderOperationView(root, store) {
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      equipmentInput.value = "";
+      if (equipmentInput) equipmentInput.value = "";
       root.querySelectorAll(".equipment-btn").forEach(b => b.classList.remove("selected"));
       root.querySelector("#observaciones").value = "";
       codeInput.value = "";

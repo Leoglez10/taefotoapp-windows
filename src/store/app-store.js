@@ -273,7 +273,6 @@ export function createStore() {
     async backupDatabase() {
       try {
         const result = await invoke("backup_database");
-        await invoke("open_file_path", { path: result.path });
         const backups = await invoke("list_backups");
         setState({
           backups,
