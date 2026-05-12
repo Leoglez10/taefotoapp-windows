@@ -214,6 +214,20 @@ export function renderOperationView(root, store) {
       btn.classList.add("selected");
       equipmentInput.value = btn.dataset.equipmentId;
     });
+    btn.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submitBtn.click();
+      }
+    });
+  });
+
+  const obsInput = root.querySelector("#observaciones");
+  obsInput.addEventListener("keydown", async (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      submitBtn.click();
+    }
   });
 
   submitBtn.addEventListener("click", async () => {
