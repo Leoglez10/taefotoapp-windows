@@ -24,7 +24,11 @@
   },
   "bundle": {
     "active": true,
-    "targets": "msi",
-    "icon": ["icons/icon.ico"]
+    "targets": ["msi", "nsis"],
+    "icon": ["icons/icon.ico"],
+    "windows": {
+      "certificateThumbprint": "TU_THUMBPRINT_AQUI",
+      "timestampUrl": "http://timestamp.digicert.com"
+    }
   }
 }

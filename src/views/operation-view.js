@@ -233,22 +233,24 @@ export function renderOperationView(root, store) {
   submitBtn.addEventListener("click", async () => {
     const currentState = store.getState();
     const equipoId = equipmentInput.value;
-    const observaciones = root.querySelector("#observaciones").value.trim();
+    const observaciones = root.querySelector("#observaciones")?.value?.trim() || "";
+    const student = currentState.selectedStudent;
 
-    if (!currentState.selectedStudent) {
+    if (!student) {
       return;
     }
 
-    if (currentState.selectedStudent.prestamo_activo) {
+    if (student.prestamo_activo) {
+      const equipoIdDev = student.prestamo_activo.equipo_id;
       await store.actions.registerStudentOperation({
-        codigo: currentState.selectedStudent.codigo,
+        codigo: student.codigo,
         tipo: "devolucion",
-        equipo_id: currentState.selectedStudent.prestamo_activo.equipo_id,
+        equipo_id: equipoIdDev,
         observaciones: observaciones || null
       });
     } else if (equipoId) {
       await store.actions.registerStudentOperation({
-        codigo: currentState.selectedStudent.codigo,
+        codigo: student.codigo,
         tipo: "prestamo",
         equipo_id: Number(equipoId),
         observaciones: observaciones || null
