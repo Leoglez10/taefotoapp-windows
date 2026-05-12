@@ -153,6 +153,7 @@ export function renderOperationView(root, store) {
           </div>
         </article>
 
+        ${!hasLoan ? `
         <article class="panel panel-equipment">
           <h3>🎯 Seleccionar Equipo</h3>
           <div class="equipment-grid">
@@ -168,10 +169,11 @@ export function renderOperationView(root, store) {
           </div>
           <input type="hidden" name="equipo_id" id="selected-equipment-id" value="" />
         </article>
+        ` : ""}
 
         <article class="panel">
           <h3>📝 Observaciones</h3>
-          <input name="observaciones" id="observaciones" class="obs-input" placeholder="Notas opcionales..." />
+          <input name="observaciones" id="observaciones" class="obs-input" placeholder="${hasLoan ? "Notas opcionales (devolución)..." : "Notas opcionales..."}" />
         </article>
 
         <button class="btn btn-block btn-xl ${submitClass}" id="submit-btn" type="button">
